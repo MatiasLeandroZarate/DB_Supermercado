@@ -3,7 +3,7 @@ Collate Latin1_General_CI_AI
 go
 use TPI_Supermercado
 go
-Create Table Proveedor(
+Create Table Proveedores(
 	IDProveedor int primary key identity(1,1),
 	Nombre nvarchar (50) not null,
 	CUIT nvarchar(25) not null,
@@ -13,7 +13,7 @@ Create Table Proveedor(
 )
 go
 
-Create Table Cliente(
+Create Table Clientes(
 	IDCliente int primary key identity(1,1),
 	DNI nvarchar (25) not null,
 	Apellido nvarchar (50) not null,
@@ -23,14 +23,14 @@ Create Table Cliente(
 )
 go
 
-Create Table Categoria(
+Create Table Categorias(
 	IDCategoria int primary key identity(1,1),
 	Nombre nvarchar (50) not null,
 	Descripcion nvarchar (100) null
 )
 go
 
-Create Table Articulo(
+Create Table Articulos(
 	IDArticulo int primary key identity(1,1),
 	Nombre nvarchar (50) not null,
 	Descripcion nvarchar (100) null,
@@ -38,11 +38,11 @@ Create Table Articulo(
 	PrecioVenta money not null check (PrecioVenta > 0),
 	Stock int not null,
 	IDCategoria int not null,
-	FOREIGN KEY (IDCategoria) References Categoria(IDCategoria)
+	FOREIGN KEY (IDCategoria) References Categorias(IDCategoria)
 )
 go
 
-Create Table Empleado(
+Create Table Empleados(
 	IDEmpleado int primary key identity(1,1),
 	DNI nvarchar (25) not null,
 	Apellido nvarchar (50) not null,
@@ -53,17 +53,17 @@ Create Table Empleado(
 )
 go
 
-Create Table Sueldo(
+Create Table PagoSueldos(
 	IDSueldo int primary key identity(1,1),
 	IDEmpleado int not null,
 	FechaPago Datetime not null default getdate(),
 	Periiodo Datetime not null default getdate(),
 	MontoPagado money not null check (MontoPagado > 0)
-	FOREIGN KEY (IDEmpleado) References Empleado(IDEmpleado)
+	FOREIGN KEY (IDEmpleado) References Empleados(IDEmpleado)
 )
 go
 
-Create Table Compra_Detalle(
+Create Table ComprasDetalle(
 	IDCompraDetalle int primary key identity(1,1),
 	IDArticulo int not null,
 	IDProveedor int not null,
@@ -74,13 +74,13 @@ Create Table Compra_Detalle(
 	Subtotal money not null check (Subtotal > 0),
 	Total money not null check (Total > 0),
 	IDEmpleado int not null
-	FOREIGN KEY (IDEmpleado) References Empleado(IDEmpleado),
-	FOREIGN KEY (IDArticulo) References Articulo(IDArticulo),
-	FOREIGN KEY (IDProveedor) References Proveedor(IDProveedor)
+	FOREIGN KEY (IDEmpleado) References Empleados(IDEmpleado),
+	FOREIGN KEY (IDArticulo) References Articulos(IDArticulo),
+	FOREIGN KEY (IDProveedor) References Proveedores(IDProveedor)
 )
 go
 
-Create Table Venta_Detalle(
+Create Table VentasDetalle(
 	IDVentaDetalle int primary key identity(1,1),
 	IDArticulo int not null,
 	IDCliente int not null,
@@ -91,7 +91,7 @@ Create Table Venta_Detalle(
 	Subtotal money not null check (Subtotal > 0),
 	Total money not null check (Total > 0),
 	IDEmpleado int not null
-	FOREIGN KEY (IDEmpleado) References Empleado(IDEmpleado),
-	FOREIGN KEY (IDArticulo) References Articulo(IDArticulo),
-	FOREIGN KEY (IDCliente) References Cliente(IDCliente)
+	FOREIGN KEY (IDEmpleado) References Empleados(IDEmpleado),
+	FOREIGN KEY (IDArticulo) References Articulos(IDArticulo),
+	FOREIGN KEY (IDCliente) References Clientes(IDCliente)
 )
