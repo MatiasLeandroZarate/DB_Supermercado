@@ -5,21 +5,29 @@ use TPI_Supermercado
 go
 Create Table Proveedores(
 	IDProveedor int primary key identity(1,1),
-	Nombre nvarchar (50) not null,
+	RazonSocial nvarchar (50) not null,
 	CUIT nvarchar(25) not null,
 	Telefono nvarchar(20) not null,
 	Email nvarchar(50) not null,
-	Direccion nvarchar(50) not null
+	Direccion nvarchar(50) not null,
+	Estado bit DEFAULT 1 not null,
+	FechaAlta datetime not null DEFAULT GETDATE(),
+	FechaUltimaModificacion datetime not null DEFAULT GETDATE()
 )
 go
 
 Create Table Clientes(
 	IDCliente int primary key identity(1,1),
 	DNI nvarchar (25) not null,
-	Apellido nvarchar (50) not null,
-	Nombre nvarchar (50) not null,
-	Telefono nvarchar (20) not null,
-	Email nvarchar (50) not null
+	CUIT nvarchar (25) null,
+	Apellido nvarchar (50) null,
+	Nombre nvarchar (50) null,
+	Telefono nvarchar (20) null,
+	Email nvarchar (50) null,
+	Direccion nvarchar(50) null,
+	Estado bit DEFAULT 1 not null,
+	FechaAlta datetime not null DEFAULT GETDATE(),
+	FechaUltimaModificacion datetime not null DEFAULT GETDATE()
 )
 go
 
@@ -36,7 +44,7 @@ Create Table Articulos(
 	Descripcion nvarchar (100) null,
 	PrecioCompra money not null check (PrecioCompra > 0),
 	PrecioVenta money not null check (PrecioVenta > 0),
-	Stock int not null,
+	Stock int not null check (Stock >= 0),
 	IDCategoria int not null,
 	FOREIGN KEY (IDCategoria) References Categorias(IDCategoria)
 )
@@ -48,20 +56,26 @@ Create Table Empleados(
 	Apellido nvarchar (50) not null,
 	Nombre nvarchar (50) not null,
 	Cargo nvarchar (50) not null,
+	Estado bit DEFAULT 1 not null,
 	FechaIngreso Datetime not null default getdate(),
-	SueldoBase money not null check (SueldoBase > 0)
+	FechaDesvinculacion datetime not null default getdate(),
+	Sueldo money not null check (Sueldo > 0)
 )
 go
 
 Create Table PagoSueldos(
-	IDSueldo int primary key identity(1,1),
+	IDPago int primary key identity(1,1),
 	IDEmpleado int not null,
 	FechaPago Datetime not null default getdate(),
-	Periiodo Datetime not null default getdate(),
-	MontoPagado money not null check (MontoPagado > 0)
+	Periodo Datetime not null default getdate(),
+	MontoPagado money not null check (MontoPagado > 0),
+	MetodoPago nvarchar(50) not null,
 	FOREIGN KEY (IDEmpleado) References Empleados(IDEmpleado)
 )
 go
+
+
+-- Revisar las columnas de las tablas "ComprasDetalle" y "VentasDetalle".
 
 Create Table ComprasDetalle(
 	IDCompraDetalle int primary key identity(1,1),
@@ -70,7 +84,7 @@ Create Table ComprasDetalle(
 	Cantidad int not null,
 	Fecha Datetime not null default getdate(),
 	PrecioUnitario money not null check (PrecioUnitario > 0),
-	Descuentos money not null check (Descuentos > 0),
+	Descuentos money null check (Descuentos >= 0),
 	Subtotal money not null check (Subtotal > 0),
 	Total money not null check (Total > 0),
 	IDEmpleado int not null
@@ -87,7 +101,7 @@ Create Table VentasDetalle(
 	Cantidad int not null,
 	Fecha Datetime not null default getdate(),
 	PrecioUnitario money not null check (PrecioUnitario > 0),
-	Descuentos money not null check (Descuentos > 0),
+	Descuentos money null check (Descuentos >= 0),
 	Subtotal money not null check (Subtotal > 0),
 	Total money not null check (Total > 0),
 	IDEmpleado int not null
