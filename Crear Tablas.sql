@@ -46,7 +46,15 @@ Create Table Articulos(
 	PrecioVenta money not null check (PrecioVenta > 0),
 	Stock int not null check (Stock >= 0),
 	IDCategoria int not null,
-	FOREIGN KEY (IDCategoria) References Categorias(IDCategoria)
+	FOREIGN KEY (IDCategoria) References Categorias(IDCategoria),
+	Activo bit DEFAULT 1 not null
+)
+go
+
+Create Table Cargos(
+	IDCargo int primary key identity(1,1),
+	Nombre nvarchar (50) not null,
+	--SalarioMensual?
 )
 go
 
@@ -55,11 +63,12 @@ Create Table Empleados(
 	DNI nvarchar (25) not null,
 	Apellido nvarchar (50) not null,
 	Nombre nvarchar (50) not null,
-	Cargo nvarchar (50) not null,
+	IDCargo int not null,
 	Estado bit DEFAULT 1 not null,
 	FechaIngreso Datetime not null default getdate(),
 	FechaDesvinculacion datetime not null default getdate(),
-	Sueldo money not null check (Sueldo > 0)
+	Sueldo money not null check (Sueldo > 0),
+	FOREIGN KEY (IDCargo) References Cargos(IDCargo)
 )
 go
 
@@ -74,11 +83,18 @@ Create Table PagoSueldos(
 )
 go
 
-
+Create table FormaPagos(
+	IdFormaPago int primary key identity(1,1),
+	Efectivo Bit Default 0 not null,
+	Debito Bit Default 0 not null,
+	Credito Bit Default 0 not null,
+	TransferenciaBco Bit Default 0 not null,
+	Cheque Bit Default 0 not null
+)
 -- Revisar las columnas de las tablas "ComprasDetalle" y "VentasDetalle".
 
 Create Table ComprasDetalle(
-	IDCompraDetalle int primary key identity(1,1),
+	--IDCompraDetalle int primary key identity(1,1),
 	IDArticulo int not null,
 	IDProveedor int not null,
 	Cantidad int not null,
@@ -87,7 +103,9 @@ Create Table ComprasDetalle(
 	Descuentos money null check (Descuentos >= 0),
 	Subtotal money not null check (Subtotal > 0),
 	Total money not null check (Total > 0),
-	IDEmpleado int not null
+	IDEmpleado int not null,
+	IDFormaPago int not null
+	FOREIGN KEY (IDFormaPago) References FormaPagos(IDFormaPago),
 	FOREIGN KEY (IDEmpleado) References Empleados(IDEmpleado),
 	FOREIGN KEY (IDArticulo) References Articulos(IDArticulo),
 	FOREIGN KEY (IDProveedor) References Proveedores(IDProveedor)
@@ -95,7 +113,7 @@ Create Table ComprasDetalle(
 go
 
 Create Table VentasDetalle(
-	IDVentaDetalle int primary key identity(1,1),
+	--IDVentaDetalle int primary key identity(1,1),
 	IDArticulo int not null,
 	IDCliente int not null,
 	Cantidad int not null,
@@ -104,7 +122,9 @@ Create Table VentasDetalle(
 	Descuentos money null check (Descuentos >= 0),
 	Subtotal money not null check (Subtotal > 0),
 	Total money not null check (Total > 0),
-	IDEmpleado int not null
+	IDEmpleado int not null,
+	IDFormaPago int not null
+	FOREIGN KEY (IDFormaPago) References FormaPagos(IDFormaPago),
 	FOREIGN KEY (IDEmpleado) References Empleados(IDEmpleado),
 	FOREIGN KEY (IDArticulo) References Articulos(IDArticulo),
 	FOREIGN KEY (IDCliente) References Clientes(IDCliente)
