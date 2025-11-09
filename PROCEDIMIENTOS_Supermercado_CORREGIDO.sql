@@ -29,19 +29,6 @@ BEGIN
         INSERT INTO VentasDetalles (IdVenta, IdArticulo, Cantidad, PrecioUnitario)
         VALUES (@IdVenta, @IdArticulo, @Cantidad, @PrecioUnitario);
 
-        UPDATE Articulos
-        SET Stock = Stock - @Cantidad
-        WHERE IDArticulo = @IdArticulo;
-
-        -- Insertar movimiento de salida (buscar tipo SALIDA)
-        DECLARE @IdTipoSalida INT;
-        SELECT TOP 1 @IdTipoSalida = IDTipoMovimiento FROM TiposMovimientos WHERE Descripcion = 'SALIDA';
-        IF @IdTipoSalida IS NULL
-            THROW 52002, 'Falta el tipo de movimiento SALIDA en TiposMovimientos.', 1;
-
-        INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVente)
-        VALUES (@IdArticulo, GETDATE(), @IdTipoSalida, @Cantidad, 0, @PrecioUnitario);
-
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -79,18 +66,6 @@ BEGIN
 
         INSERT INTO ComprasDetalles (IdCompra, IdArticulo, Cantidad, PrecioUnitario)
         VALUES (@IdCompra, @IdArticulo, @Cantidad, @PrecioUnitario);
-
-        UPDATE Articulos
-        SET Stock = Stock + @Cantidad, Precio = @PrecioUnitario
-        WHERE IDArticulo = @IdArticulo;
-
-        DECLARE @IdTipoEntrada INT;
-        SELECT TOP 1 @IdTipoEntrada = IDTipoMovimiento FROM TiposMovimientos WHERE Descripcion = 'ENTRADA';
-        IF @IdTipoEntrada IS NULL
-            THROW 52001, 'Falta el tipo de movimiento ENTRADA en TiposMovimientos.', 1;
-
-        INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVente)
-        VALUES (@IdArticulo, GETDATE(), @IdTipoEntrada, @Cantidad, @PrecioUnitario, 0);
 
         COMMIT TRANSACTION;
     END TRY
