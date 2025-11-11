@@ -85,3 +85,42 @@ BEGIN
     DROP TABLE IF EXISTS #ConflictosTemp;
 END;
 GO
+
+CREATE TRIGGER Trg_ValidarComprasProveedor
+ON Proveedores
+INSTEAD OF DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @IdProveedor INT;
+  
+    DECLARE proveedor_cursor CURSOR FOR
+        SELECT IDProveedor FROM DELETED;
+
+    OPEN proveedor_cursor;
+    FETCH NEXT FROM proveedor_cursor INTO @IdProveedor;
+
+    WHILE @@FETCH_STATUS = 0
+    BEGIN
+        IF EXISTS (SELECT 1 FROM Compras WHERE IDProveedor = @IdProveedor)
+        BEGIN
+           
+            UPDATE Proveedores
+            SET Activo = 0,
+                FechaUltimaModificacion = GETDATE()
+            WHERE IDProveedor = @IdProveedor;
+        END
+        ELSE
+        BEGIN
+            
+            DELETE FROM Proveedores
+            WHERE IDProveedor = @IdProveedor;
+        END
+
+        FETCH NEXT FROM proveedor_cursor INTO @IdProveedor;
+    END
+
+    CLOSE proveedor_cursor;
+    DEALLOCATE proveedor_cursor;
+END;

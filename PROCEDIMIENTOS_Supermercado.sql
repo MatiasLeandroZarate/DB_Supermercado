@@ -110,3 +110,42 @@ BEGIN
         THROW;
     END CATCH
 END;
+
+GO
+CREATE PROCEDURE Sp_EliminarProveedor
+    @IdProveedor INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Proveedores WHERE IDProveedor = @IdProveedor)
+          THROW 50001, 'El proveedor especificado no existe.', 1;
+       
+       IF EXISTS (SELECT 1 FROM Compras WHERE IDProveedor = @IdProveedor)
+        BEGIN
+
+            UPDATE Proveedores
+            SET Activo = 0,
+                FechaUltimaModificacion = GETDATE()
+            WHERE IDProveedor = @IdProveedor;
+        END
+        ELSE
+        BEGIN
+
+            DELETE FROM Proveedores
+            WHERE IDProveedor = @IdProveedor;
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+ 
+        THROW;
+    END CATCH
+END;
