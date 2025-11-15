@@ -1,4 +1,4 @@
-ALTER PROCEDURE sp_RegistrarVenta
+CREATE PROCEDURE sp_RegistrarVenta
     @IdCliente INT,
     @IdEmpleado INT,
     @IdFormaPago INT,
@@ -46,3 +46,6 @@ BEGIN
         THROW;
     END CATCH
 END;
+
+
+EXEC sp_RegistrarVenta 1, 2, 1, 1, '2025-11-15', 5, 3, 1500.00;
