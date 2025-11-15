@@ -1,248 +1,151 @@
-ALTER PROCEDURE sp_RegistrarVenta
-    @IdCliente INT,
-    @IdEmpleado INT,
-    @IdFormaPago INT,
-    @IdTipoFactura INT,
-    @Fecha DATE,
-    @IdArticulo INT,
+DROP PROCEDURE [dbo].[sp_RegistrarVenta]
+GO
+DROP PROCEDURE IF EXISTS sp_RegistrarVenta;
+GO
+CREATE PROCEDURE sp_RegistrarVenta
+    @IDCliente INT,
+    @IDFormaPago INT,
+    @IDTipoFactura INT,     -- OBLIGATORIO (tu tabla lo exige)
+    @IDProducto INT,
     @Cantidad INT,
-    @PrecioUnitario DECIMAL(10,2)
+    @PrecioUnitario DECIMAL(10,2),
+    @DescuentoAplicado DECIMAL(10,2) = 0
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;
 
-    BEGIN TRY
-        BEGIN TRANSACTION;
+    DECLARE @Subtotal DECIMAL(10,2);
+    DECLARE @Total DECIMAL(10,2);
+    DECLARE @IDVenta INT;
 
-        DECLARE @StockActual INT, @IdVenta INT;
+    SET @Cantidad = ISNULL(@Cantidad, 0);
+    SET @PrecioUnitario = ISNULL(@PrecioUnitario, 0);
+    SET @DescuentoAplicado = ISNULL(@DescuentoAplicado, 0);
 
-        SELECT @StockActual = Stock
-        FROM Articulos
-        WHERE IDArticulo = @IdArticulo;
+    SET @Subtotal = @Cantidad * @PrecioUnitario;
+    SET @Total = @Subtotal - @DescuentoAplicado;
 
-        IF @StockActual IS NULL
-            THROW 50001, 'El artículo especificado no existe.', 1;
+    INSERT INTO Ventas (IDCliente, IDFormaPago, IDTipoFactura, Fecha, Subtotal, Total)
+    VALUES (@IDCliente, @IDFormaPago, @IDTipoFactura, GETDATE(), @Subtotal, @Total);
 
-        IF @StockActual < @Cantidad
-            THROW 50002, 'No hay stock suficiente para realizar la venta.', 1;
+    SET @IDVenta = SCOPE_IDENTITY();
 
-        INSERT INTO Ventas (IdCliente, IdEmpleado, IdFormaPago, IdTipoFactura, Fecha)
-        VALUES (@IdCliente, @IdEmpleado, @IdFormaPago, @IdTipoFactura, @Fecha);
-
-        SET @IdVenta = SCOPE_IDENTITY();
-
-        INSERT INTO VentasDetalles (IdVenta, IdArticulo, Cantidad, PrecioUnitario)
-        VALUES (@IdVenta, @IdArticulo, @Cantidad, @PrecioUnitario);
-
-        UPDATE Articulos
-        SET Stock = Stock - @Cantidad
-        WHERE IDArticulo = @IdArticulo;
-
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
+    INSERT INTO VentasDetalles (IDVenta, IDArticulo, Cantidad, PrecioUnitario)
+    VALUES (@IDVenta, @IDProducto, @Cantidad, @PrecioUnitario);
 END;
 GO
 EXEC sp_RegistrarVenta
-    @IdCliente = 1,
-    @IdEmpleado = 1,
-    @IdFormaPago = 1,
-    @IdTipoFactura = 1,
-    @Fecha = '2025-01-01',
-    @IdArticulo = 1,
-    @Cantidad = 1,
-    @PrecioUnitario = 100.00;
+    @IDCliente = 1,
+    @IDFormaPago = 1,
+    @IDTipoFactura = 1,
+    @IDProducto = 5,
+    @Cantidad = 3,
+    @PrecioUnitario = 200.00,
+    @DescuentoAplicado = 50.00;
+GO
+EXEC sp_RegistrarVenta
+    @Fecha = '2024-11-15',
+    @IDCliente = 1,
+    @IDTipoFactura = 1,
+    @NumComprobante = 'A-0001-00012345',
+    @IDArticulo = 1,
+    @Cantidad = 3,
+    @Precio = 1500;
+
 GO
 DROP PROCEDURE IF EXISTS sp_RegistrarVenta;
 GO
+
 CREATE PROCEDURE sp_RegistrarVenta
-    @IdCliente INT,
-    @IdEmpleado INT,
-    @IdFormaPago INT,
-    @IdTipoFactura INT,
+(
+    @IDCliente INT,
+    @IDFormaPago INT,
+    @IDTipoFactura INT,
     @NumComprobante INT,
-    @Fecha DATE,
-    @IdArticulo INT,
+    @IDEmpleado INT,
+    @IDProducto INT,
     @Cantidad INT,
     @PrecioUnitario DECIMAL(10,2),
-    @DescuentoPorcentaje DECIMAL(5,2)   -- ejemplo: 10 = 10%
+    @DescuentoAplicado MONEY = 0,
+    @Observaciones NVARCHAR(250) = NULL,
+    @CondicionIVA NVARCHAR(100) = NULL,
+    @IIBB NVARCHAR(100) = NULL
+)
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;
 
-    BEGIN TRY
-        BEGIN TRANSACTION;
+    DECLARE @Subtotal MONEY;
+    DECLARE @Total MONEY;
+    DECLARE @IDVenta INT;
 
-        DECLARE @StockActual INT;
-        DECLARE @IdVenta INT;
-        DECLARE @Subtotal DECIMAL(12,2);
-        DECLARE @DescuentoAplicado DECIMAL(12,2);
+    -- Evitar nulos
+    SET @Cantidad = ISNULL(@Cantidad, 0);
+    SET @PrecioUnitario = ISNULL(@PrecioUnitario, 0);
+    SET @DescuentoAplicado = ISNULL(@DescuentoAplicado, 0);
 
-        -- Validación de artículo
-        SELECT @StockActual = Stock
-        FROM Articulos
-        WHERE IDArticulo = @IdArticulo;
+    -- Calculos
+    SET @Subtotal = @Cantidad * @PrecioUnitario;
+    SET @Total = @Subtotal - @DescuentoAplicado;
 
-        IF @StockActual IS NULL
-            THROW 50001, 'El artículo especificado no existe.', 1;
+    -- INSERT VENTA
+    INSERT INTO Ventas (
+        IDCliente,
+        IDTipoFactura,
+        NumComprobante,
+        Fecha,
+        Descuentos,
+        Subtotal,
+        Total,
+        Observaciones,
+        CondicionIVA,
+        IIBB,
+        IDEmpleado,
+        IDFormaPago
+    )
+    VALUES (
+        @IDCliente,
+        @IDTipoFactura,
+        @NumComprobante,
+        GETDATE(),
+        @DescuentoAplicado,
+        @Subtotal,
+        @Total,
+        @Observaciones,
+        @CondicionIVA,
+        @IIBB,
+        @IDEmpleado,
+        @IDFormaPago
+    );
 
-        IF @StockActual < @Cantidad
-            THROW 50002, 'No hay stock suficiente para realizar la venta.', 1;
+    -- ID de la venta generada
+    SET @IDVenta = SCOPE_IDENTITY();
 
-        -- Calcular descuento
-        SET @DescuentoAplicado = (@Cantidad * @PrecioUnitario) * (@DescuentoPorcentaje / 100.0);
-
-        -- Calcular subtotal final
-        SET @Subtotal = (@Cantidad * @PrecioUnitario) - @DescuentoAplicado;
-
-        -- Insertar venta
-        INSERT INTO Ventas (
-            IdCliente, IdEmpleado, IdFormaPago, IdTipoFactura,
-            NumComprobante, Fecha, Subtotal, Descuentos
-        )
-        VALUES (
-            @IdCliente, @IdEmpleado, @IdFormaPago, @IdTipoFactura,
-            @NumComprobante, @Fecha, @Subtotal, @DescuentoAplicado
-        );
-
-        SET @IdVenta = SCOPE_IDENTITY();
-
-        -- Insertar detalle
-        INSERT INTO VentasDetalles (
-            IdVenta, IdArticulo, Cantidad, PrecioUnitario
-        )
-        VALUES (
-            @IdVenta, @IdArticulo, @Cantidad, @PrecioUnitario
-        );
-
-        -- Actualizar stock
-        UPDATE Articulos
-        SET Stock = Stock - @Cantidad
-        WHERE IDArticulo = @IdArticulo;
-
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
-END;
-
-GO
-EXEC sp_RegistrarVenta 
-    @IdCliente = 1,
-    @IdEmpleado = 2,
-    @IdFormaPago = 1,
-    @IdTipoFactura = 1,
-    @NumComprobante = 1001,
-    @Fecha = '2025-11-15',
-    @IdArticulo = 5,
-    @Cantidad = 3,
-    @PrecioUnitario = 200.00,
-    @DescuentoPorcentaje = 10;     -- porcentaje
-GO
-
-DROP PROCEDURE IF EXISTS sp_RegistrarVenta;
-GO
-CREATE PROCEDURE sp_RegistrarVenta
-    @IdCliente INT,
-    @IdEmpleado INT,
-    @IdFormaPago INT,
-    @IdTipoFactura INT,
-    @NumComprobante INT,
-    @Fecha DATE,
-    @IdArticulo INT,
-    @Cantidad INT,
-    @PrecioUnitario DECIMAL(10,2),
-    @DescuentoPorcentaje DECIMAL(5,2)   -- ejemplo: 10 = 10%
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-
-    BEGIN TRY
-        BEGIN TRANSACTION;
-
-        DECLARE @StockActual INT;
-        DECLARE @IdVenta INT;
-        DECLARE @Subtotal DECIMAL(12,2);
-        DECLARE @DescuentoAplicado DECIMAL(12,2);
-        DECLARE @Total DECIMAL(12,2);
-
-        -- Validación de artículo
-        SELECT @StockActual = Stock
-        FROM Articulos
-        WHERE IDArticulo = @IdArticulo;
-
-        IF @StockActual IS NULL
-            THROW 50001, 'El artículo especificado no existe.', 1;
-
-        IF @StockActual < @Cantidad
-            THROW 50002, 'No hay stock suficiente para realizar la venta.', 1;
-
-        -- Calcular descuento
-        SET @DescuentoAplicado = (@Cantidad * @PrecioUnitario) * (@DescuentoPorcentaje / 100.0);
-
-        -- Calcular subtotal
-        SET @Subtotal = (@Cantidad * @PrecioUnitario) - @DescuentoAplicado;
-
-        -- Total (tu tabla exige NOT NULL)
-        SET @Total = @Subtotal;
-
-        -- Insertar venta
-        INSERT INTO Ventas (
-            IdCliente, IdEmpleado, IdFormaPago, IdTipoFactura,
-            NumComprobante, Fecha, Subtotal, Descuentos, Total
-        )
-        VALUES (
-            @IdCliente, @IdEmpleado, @IdFormaPago, @IdTipoFactura,
-            @NumComprobante, @Fecha, @Subtotal, @DescuentoAplicado, @Total
-        );
-
-        SET @IdVenta = SCOPE_IDENTITY();
-
-        -- Insertar detalle
-        INSERT INTO VentasDetalles (
-            IdVenta, IdArticulo, Cantidad, PrecioUnitario
-        )
-        VALUES (
-            @IdVenta, @IdArticulo, @Cantidad, @PrecioUnitario
-        );
-
-        -- Actualizar stock
-        UPDATE Articulos
-        SET Stock = Stock - @Cantidad
-        WHERE IDArticulo = @IdArticulo;
-
-        COMMIT TRANSACTION;
-    END TRY
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
-        THROW;
-    END CATCH
+    -- INSERT DETALLE
+    INSERT INTO VentasDetalles (
+        IDVenta,
+        IDArticulo,
+        Cantidad,
+        PrecioUnitario
+    )
+    VALUES (
+        @IDVenta,
+        @IDProducto,
+        @Cantidad,
+        @PrecioUnitario
+    );
 END;
 GO
-
-
-    INSERT INTO TiposMovimientos (Descripcion)
-VALUES ('SALIDA');
-GO
 EXEC sp_RegistrarVenta 
-    @IdCliente = 1,
-    @IdEmpleado = 2,
-    @IdFormaPago = 1,
-    @IdTipoFactura = 1,
-    @NumComprobante = 1001,
-    @Fecha = '2025-11-15',
-    @IdArticulo = 5,
+    @IDCliente = 1,
+    @IDFormaPago = 1,
+    @IDTipoFactura = 1,
+    @NumComprobante = 1555,
+    @IDEmpleado = 2,
+    @IDProducto = 5,
     @Cantidad = 3,
-    @PrecioUnitario = 200.00,
-    @DescuentoPorcentaje = 10;     -- porcentaje
+    @PrecioUnitario = 200,
+    @DescuentoAplicado = 50;
 
 
 
