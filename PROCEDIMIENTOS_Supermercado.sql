@@ -1,7 +1,8 @@
-CREATE PROCEDURE sp_RegistrarVenta
+ALTER PROCEDURE sp_RegistrarVenta
     @IdCliente INT,
     @IdEmpleado INT,
     @IdFormaPago INT,
+	@IdTipoFactura INT,
     @Fecha DATE,
     @IdArticulo INT,
     @Cantidad INT,
@@ -21,8 +22,8 @@ BEGIN
         IF @StockActual < @Cantidad
             THROW 50002, 'No hay stock suficiente para realizar la venta.', 1;
 
-        INSERT INTO Ventas (IdCliente, IdEmpleado, IdFormaPago, Fecha)
-        VALUES (@IdCliente, @IdEmpleado, @IdFormaPago, @Fecha);
+        INSERT INTO Ventas (IdCliente, IdTipoFactura, IdEmpleado, IdFormaPago, Fecha)
+        VALUES (@IdCliente, @IdTipoFactura, @IdEmpleado, @IdFormaPago, @Fecha);
 
         SET @IdVenta = SCOPE_IDENTITY();
 
