@@ -114,6 +114,8 @@ VALUES
 ('Rotura'),
 ('Vencimiento'),
 ('Promoción'),
+('Entrada'),
+('Salida'),
 ('Inventario');
 go
 INSERT INTO MovimientosArticulos (IDArticulo, Cantidad, Precio, PrecioVenta, IDTipoMovimiento)
