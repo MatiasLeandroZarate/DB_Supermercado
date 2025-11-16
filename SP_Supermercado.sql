@@ -1,3 +1,201 @@
+CREATE PROCEDURE sp_RegistrarVenta
+(
+    @IDCliente INT,
+    @IDFormaPago INT,
+    @IDTipoFactura INT,
+    @NumComprobante INT,
+    @IDEmpleado INT,
+    @IDProducto INT,
+    @Cantidad INT,
+    @PrecioUnitario DECIMAL(10,2),
+    @DescuentoAplicado MONEY = 0,
+    @Observaciones NVARCHAR(250) = NULL,
+    @CondicionIVA NVARCHAR(100) = NULL,
+    @IIBB NVARCHAR(100) = NULL
+)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    DECLARE @Subtotal MONEY;
+    DECLARE @Total MONEY;
+    DECLARE @IDVenta INT;
+
+    -- Evitar nulos
+    SET @Cantidad = ISNULL(@Cantidad, 0);
+    SET @PrecioUnitario = ISNULL(@PrecioUnitario, 0);
+    SET @DescuentoAplicado = ISNULL(@DescuentoAplicado, 0);
+
+    -- Calculos
+    SET @Subtotal = @Cantidad * @PrecioUnitario;
+    SET @Total = @Subtotal - @DescuentoAplicado;
+
+    -- INSERT VENTA
+    INSERT INTO Ventas (
+        IDCliente,
+        IDTipoFactura,
+        NumComprobante,
+        Fecha,
+        Descuentos,
+        Subtotal,
+        Total,
+        Observaciones,
+        CondicionIVA,
+        IIBB,
+        IDEmpleado,
+        IDFormaPago
+    )
+    VALUES (
+        @IDCliente,
+        @IDTipoFactura,
+        @NumComprobante,
+        GETDATE(),
+        @DescuentoAplicado,
+        @Subtotal,
+        @Total,
+        @Observaciones,
+        @CondicionIVA,
+        @IIBB,
+        @IDEmpleado,
+        @IDFormaPago
+    );
+
+    -- ID de la venta generada
+    SET @IDVenta = SCOPE_IDENTITY();
+
+    -- INSERT DETALLE
+    INSERT INTO VentasDetalles (
+        IDVenta,
+        IDArticulo,
+        Cantidad,
+        PrecioUnitario
+    )
+    VALUES (
+        @IDVenta,
+        @IDProducto,
+        @Cantidad,
+        @PrecioUnitario
+    );
+END;
+GO
+
+CREATE PROCEDURE sp_RegistrarCompra
+    @IdProveedor INT,
+    @IdEmpleado INT,
+    @IdFormaPago INT,
+    @FechaCompra DATE,
+    @IdArticulo INT,
+    @Cantidad INT,
+    @PrecioUnitario DECIMAL(10,2)
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @IdCompra INT;
+
+        IF @Cantidad <= 0 OR @PrecioUnitario <= 0
+            THROW 50010, 'La cantidad y el precio deben ser mayores a cero.', 1;
+
+        IF NOT EXISTS (SELECT 1 FROM Articulos WHERE IDArticulo = @IdArticulo)
+            THROW 50011, 'El artículo especificado no existe.', 1;
+
+        INSERT INTO Compras (IdProveedor, IdEmpleado, IdFormaPago, Fecha)
+        VALUES (@IdProveedor, @IdEmpleado, @IdFormaPago, @FechaCompra);
+
+        SET @IdCompra = SCOPE_IDENTITY();
+
+        INSERT INTO ComprasDetalles (IdCompra, IdArticulo, Cantidad, PrecioUnitario)
+        VALUES (@IdCompra, @IdArticulo, @Cantidad, @PrecioUnitario);
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+GO
+CREATE PROCEDURE sp_RegistrarPagoSueldo
+    @IdEmpleado INT,
+    @FechaPago DATE,
+    @Monto DECIMAL(10,2) = NULL
+AS
+BEGIN
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (
+            SELECT 1
+            FROM Empleados E
+            INNER JOIN Personas P ON E.IDPersona = P.IDPersona
+            WHERE E.IDEmpleado = @IdEmpleado AND P.Activo = 1
+        )
+            THROW 53001, 'El empleado no existe o está inactivo.', 1;
+
+        IF @Monto IS NULL
+            SELECT @Monto = Sueldo FROM Empleados WHERE IDEmpleado = @IdEmpleado;
+
+        IF @Monto IS NULL OR @Monto <= 0
+            THROW 53002, 'Monto de pago inválido.', 1;
+
+        INSERT INTO PagoSueldos (IDEmpleado, FechaPago, Periodo, MontoPagado, MetodoPago)
+        VALUES (
+            @IdEmpleado,
+            @FechaPago,
+            FORMAT(@FechaPago, 'yyyy-MM'), -- Ejemplo: '2025-11'
+            @Monto,
+            'Sistema' 
+        );
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
+END;
+
+
+GO
+CREATE PROCEDURE Sp_EliminarProveedor
+    @IdProveedor INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        IF NOT EXISTS (SELECT 1 FROM Proveedores WHERE IDProveedor = @IdProveedor)
+          THROW 50001, 'El proveedor especificado no existe.', 1;
+       
+       IF EXISTS (SELECT 1 FROM Compras WHERE IDProveedor = @IdProveedor)
+        BEGIN
+
+            UPDATE Proveedores
+            SET Activo = 0,
+                FechaUltimaModificacion = GETDATE()
+            WHERE IDProveedor = @IdProveedor;
+        END
+        ELSE
+        BEGIN
+
+            DELETE FROM Proveedores
+            WHERE IDProveedor = @IdProveedor;
+        END
+
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+
+ 
+        THROW;
+    END CATCH
+END;
+GO
 /**********************************************************************************************
   PROCEDIMIENTO: sp_ReporteGeneral
   OBJETIVO:
@@ -9,8 +207,6 @@
       - Movimientos de stock
     Usa la función dbo.fn_NivelMonto para clasificar montos ('BAJO', 'MEDIO', 'ALTO')
 **********************************************************************************************/
-
-
 
 CREATE PROCEDURE sp_ReporteGeneral
     @FechaDesde DATE = NULL,   
@@ -135,31 +331,3 @@ BEGIN
     PRINT '==== FIN DEL REPORTE GENERAL ====';
 END;
 GO
-EXEC sp_ReporteGeneral;
-/*Qué muestra:
-Todas las ventas de todos los clientes.
-Todas las compras de todos los proveedores.
-Todos los pagos de sueldos registrados.
-Stock total valorizado actual.
-Todos los movimientos de stock.*/
-
-GO/*Filtrar por rango de fechas*/
-EXEC sp_ReporteGeneral 
-     @FechaDesde = '2025-01-01',
-     @FechaHasta = '2025-03-31';
-
-/*Qué muestra:
-Solo registros del primer trimestre 2025.
-Ideal para reportes trimestrales.*/
-/*Filtrar por cliente específico*/
-EXEC sp_ReporteGeneral 
-     @IdCliente = 3;
-
-/*Qué muestra:
-Reporte general, pero limitado a las operaciones del cliente con Id = 3.
-Ventas de ese cliente.
-Resto de bloques (compras, sueldos, stock, movimientos) se muestran completos.*/
-GO
-/*Filtrar por proveedor específico*/
-EXEC sp_ReporteGeneral 
-     @IdProveedor = 7;

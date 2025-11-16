@@ -15,7 +15,7 @@ BEGIN
     IF @IdTipoEntrada IS NULL
         THROW 52001, 'Falta el tipo de movimiento ENTRADA en TiposMovimientos.', 1;
 
-    INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVente)
+    INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVenta)
     SELECT I.IDArticulo, GETDATE(), @IdTipoEntrada, I.Cantidad, COALESCE(I.PrecioUnitario,0), 0
     FROM INSERTED I;
 END;
@@ -38,7 +38,7 @@ BEGIN
     IF @IdTipoSalida IS NULL
         THROW 52002, 'Falta el tipo de movimiento SALIDA en TiposMovimientos.', 1;
 
-    INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVente)
+    INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVenta)
     SELECT I.IDArticulo, GETDATE(), @IdTipoSalida, I.Cantidad, 0, COALESCE(I.PrecioUnitario,0)
     FROM INSERTED I;
 END;
@@ -62,6 +62,7 @@ BEGIN
         INNER JOIN Nuevos N ON P.IdEmpleado = N.IdEmpleado
             AND MONTH(P.FechaPago) = N.MesPago
             AND YEAR(P.FechaPago) = N.AnioPago
+        WHERE P.IDSueldo NOT IN (SELECT IDSueldo FROM INSERTED) -- 🔍 EXCLUYE LA FILA INSERTADA
         GROUP BY P.IdEmpleado, MONTH(P.FechaPago), YEAR(P.FechaPago)
     ),
     Conflictos AS (
@@ -84,7 +85,6 @@ BEGIN
 
     DROP TABLE IF EXISTS #ConflictosTemp;
 END;
-GO
 
 CREATE TRIGGER Trg_ValidarComprasProveedor
 ON Proveedores
