@@ -120,7 +120,8 @@ GO
 CREATE PROCEDURE sp_RegistrarPagoSueldo
     @IdEmpleado INT,
     @FechaPago DATE,
-    @Monto DECIMAL(10,2) = NULL
+    @Monto DECIMAL(10,2) = NULL,
+	@MetodoPago nvarchar(25)
 AS
 BEGIN
     BEGIN TRY
@@ -140,13 +141,17 @@ BEGIN
         IF @Monto IS NULL OR @Monto <= 0
             THROW 53002, 'Monto de pago inválido.', 1;
 
+        DECLARE @Periodo NVARCHAR(7);
+        SET @Periodo = FORMAT(DATEADD(MONTH, -1, @FechaPago), 'yyyy-MM');
+
+       
         INSERT INTO PagoSueldos (IDEmpleado, FechaPago, Periodo, MontoPagado, MetodoPago)
         VALUES (
             @IdEmpleado,
             @FechaPago,
-            FORMAT(@FechaPago, 'yyyy-MM'), -- Ejemplo: '2025-11'
+            @Periodo,
             @Monto,
-            'Sistema' 
+            @MetodoPago
         );
 
         COMMIT TRANSACTION;
@@ -156,6 +161,7 @@ BEGIN
         THROW;
     END CATCH
 END;
+
 
 
 GO
@@ -309,7 +315,7 @@ BEGIN
 
     /********************************************************************
       BLOQUE 5: MOVIMIENTOS DE STOCK
-      ma.IDMovimientoART y ma.PrecioVente confirmados
+      ma.IDMovimientoART y ma.PrecioVenta confirmados
     ********************************************************************/
     PRINT '>> MOVIMIENTOS DE STOCK (ENTRADAS Y SALIDAS)';
     SELECT 
@@ -319,7 +325,7 @@ BEGIN
         a.[Nombre] AS Articulo,
         ma.[Cantidad],
         ma.[Precio],
-        ma.[PrecioVente] AS PrecioVenta
+        ma.[PrecioVenta] AS PrecioVenta
     FROM [MovimientosArticulos] ma
     INNER JOIN [TiposMovimientos] tm ON ma.[IDTipoMovimiento] = tm.[IDTipoMovimiento]
     INNER JOIN [Articulos] a ON ma.[IDArticulo] = a.[IDArticulo]

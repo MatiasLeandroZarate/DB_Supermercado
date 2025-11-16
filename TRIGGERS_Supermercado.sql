@@ -62,7 +62,7 @@ BEGIN
         INNER JOIN Nuevos N ON P.IdEmpleado = N.IdEmpleado
             AND MONTH(P.FechaPago) = N.MesPago
             AND YEAR(P.FechaPago) = N.AnioPago
-        WHERE P.IDSueldo NOT IN (SELECT IDSueldo FROM INSERTED) -- 🔍 EXCLUYE LA FILA INSERTADA
+        WHERE P.IDSueldo NOT IN (SELECT IDSueldo FROM INSERTED) 
         GROUP BY P.IdEmpleado, MONTH(P.FechaPago), YEAR(P.FechaPago)
     ),
     Conflictos AS (
