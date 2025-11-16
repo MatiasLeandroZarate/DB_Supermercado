@@ -85,6 +85,7 @@ BEGIN
 
     DROP TABLE IF EXISTS #ConflictosTemp;
 END;
+GO
 
 CREATE TRIGGER Trg_ValidarComprasProveedor
 ON Proveedores

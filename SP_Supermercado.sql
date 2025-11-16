@@ -116,6 +116,7 @@ BEGIN
     END CATCH
 END;
 GO
+
 CREATE PROCEDURE sp_RegistrarPagoSueldo
     @IdEmpleado INT,
     @FechaPago DATE,
@@ -330,4 +331,3 @@ BEGIN
     PRINT ' ';
     PRINT '==== FIN DEL REPORTE GENERAL ====';
 END;
-GO
