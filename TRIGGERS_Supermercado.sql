@@ -1,3 +1,4 @@
+datos. 
 CREATE TRIGGER TR_ActualizarStockCompra
 ON ComprasDetalles
 AFTER INSERT
@@ -11,14 +12,15 @@ BEGIN
     INNER JOIN INSERTED I ON A.IDArticulo = I.IDArticulo;
 
     DECLARE @IdTipoEntrada INT;
-    SELECT TOP 1 @IdTipoEntrada = IDTipoMovimiento FROM TiposMovimientos WHERE Descripcion = 'ENTRADA';
+    SELECT TOP 1 @IdTipoEntrada = IDTipoMovimiento FROM TiposMo-vimientos WHERE Descripcion = 'ENTRADA';
     IF @IdTipoEntrada IS NULL
-        THROW 52001, 'Falta el tipo de movimiento ENTRADA en TiposMovimientos.', 1;
+        THROW 52001, 'Falta el tipo de movimiento ENTRADA en Ti-posMovimientos.', 1;
 
-    INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimiento, IDTipoMovimiento, Cantidad, Precio, PrecioVenta)
+    INSERT INTO MovimientosArticulos (IDArticulo, FechaMovimien-to, IDTipoMovimiento, Cantidad, Precio, PrecioVenta)
     SELECT I.IDArticulo, GETDATE(), @IdTipoEntrada, I.Cantidad, COALESCE(I.PrecioUnitario,0), 0
     FROM INSERTED I;
 END;
+
 GO
 
 CREATE TRIGGER TR_ActualizarStockVenta
@@ -42,6 +44,7 @@ BEGIN
     SELECT I.IDArticulo, GETDATE(), @IdTipoSalida, I.Cantidad, 0, COALESCE(I.PrecioUnitario,0)
     FROM INSERTED I;
 END;
+
 GO
 
 CREATE TRIGGER TR_ControlPagoSueldos
@@ -85,6 +88,7 @@ BEGIN
 
     DROP TABLE IF EXISTS #ConflictosTemp;
 END;
+
 GO
 
 CREATE TRIGGER Trg_ValidarComprasProveedor

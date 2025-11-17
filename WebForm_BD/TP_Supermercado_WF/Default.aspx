@@ -2,13 +2,9 @@
 
 <asp:Content ID="BodyContent" ContentPlaceHolderID="ContentPlaceHolder1" runat="server">
 
-    <main>
-        <section class="row" aria-labelledby="aspnetTitle">
-            <h1 id="aspnetTitle">Trabajo Practico Intergrador de Bases de Datos - Grupo N° 51</h1>
-            
-        </section>
-
-        
-    </main>
+         <div class="mb-3 text-center">
+    <img src="https://www.datasunrise.com/wp-content/uploads/2024/06/Data-Migration-1024x585.webp" alt="Bases de Datos" class="img-fluid mx-auto d-block" />
+    
+</div>
 
 </asp:Content>

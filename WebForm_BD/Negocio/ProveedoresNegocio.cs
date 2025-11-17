@@ -104,8 +104,7 @@ namespace Negocio
             AccesoBD datos = new AccesoBD();
 
             try
-            {
-                datos.setearQuery("DELETE Proveedores WHERE idProveedor = @idProveedor");
+            {   datos.setearStoreProcedure("Sp_EliminarProveedor");
                 datos.setearParametro("@idProveedor", Id);
                 datos.ejecutarAccion();
             }

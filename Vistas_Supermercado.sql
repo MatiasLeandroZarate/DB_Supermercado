@@ -39,3 +39,18 @@ FROM Articulos a
 INNER JOIN Categorias c ON a.IDCategoria = c.IDCategoria
 WHERE a.Activo = 1;
 
+GO
+
+CREATE VIEW VW_VentasPorClienteConNivel AS
+SELECT 
+    c.IdCliente,
+    p.Apellido + ', ' + p.Nombre AS Cliente,
+    COUNT (DISTINCT v.IdVenta) AS CantidadVentas,
+    SUM (d.Cantidad * d.PrecioUnitario) AS TotalFacturado,
+    dbo.fn_NivelFacturacion(SUM (d.Cantidad * d.PrecioUnitario)) AS NivelFacturacion,
+    MAX(v.Fecha) AS UltimaCompra
+FROM Ventas v
+INNER JOIN VentasDetalles d ON v.IdVenta = d.IdVenta
+INNER JOIN Clientes c ON v.IdCliente = c.IdCliente
+INNER JOIN Personas p ON c.IdPersona = p.IdPersona
+GROUP BY c.IdCliente, p.Apellido, p.Nombre;

@@ -1,4 +1,4 @@
-CREATE PROCEDURE sp_RegistrarVenta
+CREATE PROCEDURE Sp_RegistrarVenta
 (
     @IDCliente INT,
     @IDFormaPago INT,
@@ -21,12 +21,10 @@ BEGIN
     DECLARE @Total MONEY;
     DECLARE @IDVenta INT;
 
-    -- Evitar nulos
     SET @Cantidad = ISNULL(@Cantidad, 0);
     SET @PrecioUnitario = ISNULL(@PrecioUnitario, 0);
     SET @DescuentoAplicado = ISNULL(@DescuentoAplicado, 0);
 
-    -- Calculos
     SET @Subtotal = @Cantidad * @PrecioUnitario;
     SET @Total = @Subtotal - @DescuentoAplicado;
 
@@ -77,22 +75,30 @@ BEGIN
         @PrecioUnitario
     );
 END;
+
 GO
 
 CREATE PROCEDURE sp_RegistrarCompra
-    @IdProveedor INT,
+        @IdProveedor INT,
     @IdEmpleado INT,
     @IdFormaPago INT,
+    @IDTipoFactura INT,
+    @NumComprobante INT,
     @FechaCompra DATE,
     @IdArticulo INT,
     @Cantidad INT,
-    @PrecioUnitario DECIMAL(10,2)
+    @PrecioUnitario DECIMAL(10,2),
+    @Observaciones NVARCHAR(250) = NULL,
+    @CondicionIVA NVARCHAR(100) = NULL,
+    @IIBB NVARCHAR(100) = NULL
 AS
 BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
         DECLARE @IdCompra INT;
+        DECLARE @Subtotal MONEY;
+        DECLARE @Total MONEY;
 
         IF @Cantidad <= 0 OR @PrecioUnitario <= 0
             THROW 50010, 'La cantidad y el precio deben ser mayores a cero.', 1;
@@ -100,8 +106,21 @@ BEGIN
         IF NOT EXISTS (SELECT 1 FROM Articulos WHERE IDArticulo = @IdArticulo)
             THROW 50011, 'El artículo especificado no existe.', 1;
 
-        INSERT INTO Compras (IdProveedor, IdEmpleado, IdFormaPago, Fecha)
-        VALUES (@IdProveedor, @IdEmpleado, @IdFormaPago, @FechaCompra);
+        SET @Subtotal = @Cantidad * @PrecioUnitario;
+        SET @Total = @Subtotal;
+
+        INSERT INTO Compras (
+            IdProveedor, IDTipoFactura, NumComprobante, Fecha,
+            Descuentos, Subtotal, Total,
+            Observaciones, CondicionIVA, IIBB,
+            IdEmpleado, IdFormaPago
+        )
+        VALUES (
+            @IdProveedor, @IDTipoFactura, @NumComprobante, @FechaCompra,
+            0, @Subtotal, @Total,
+            @Observaciones, @CondicionIVA, @IIBB,
+            @IdEmpleado, @IdFormaPago
+        );
 
         SET @IdCompra = SCOPE_IDENTITY();
 
@@ -115,13 +134,14 @@ BEGIN
         THROW;
     END CATCH
 END;
+
 GO
 
 CREATE PROCEDURE sp_RegistrarPagoSueldo
     @IdEmpleado INT,
     @FechaPago DATE,
     @Monto DECIMAL(10,2) = NULL,
-	@MetodoPago nvarchar(25)
+    @MetodoPago nvarchar(25)
 AS
 BEGIN
     BEGIN TRY
@@ -144,7 +164,6 @@ BEGIN
         DECLARE @Periodo NVARCHAR(7);
         SET @Periodo = FORMAT(DATEADD(MONTH, -1, @FechaPago), 'yyyy-MM');
 
-       
         INSERT INTO PagoSueldos (IDEmpleado, FechaPago, Periodo, MontoPagado, MetodoPago)
         VALUES (
             @IdEmpleado,
@@ -153,7 +172,6 @@ BEGIN
             @Monto,
             @MetodoPago
         );
-
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH
@@ -162,9 +180,8 @@ BEGIN
     END CATCH
 END;
 
-
-
 GO
+
 CREATE PROCEDURE Sp_EliminarProveedor
     @IdProveedor INT
 AS
@@ -174,7 +191,7 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        IF NOT EXISTS (SELECT 1 FROM Proveedores WHERE IDProveedor = @IdProveedor)
+        IF NOT EXISTS (SELECT 1 FROM Proveedores WHERE IDProvee-dor = @IdProveedor)
           THROW 50001, 'El proveedor especificado no existe.', 1;
        
        IF EXISTS (SELECT 1 FROM Compras WHERE IDProveedor = @IdProveedor)
@@ -197,11 +214,10 @@ BEGIN
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-
- 
         THROW;
     END CATCH
 END;
+
 GO
 /**********************************************************************************************
   PROCEDIMIENTO: sp_ReporteGeneral
@@ -234,7 +250,7 @@ BEGIN
         p.[Apellido] + ', ' + p.[Nombre] AS Cliente,
         COUNT(DISTINCT v.[IdVenta]) AS CantidadVentas,
         SUM(d.[Cantidad] * d.[PrecioUnitario]) AS TotalFacturado,
-        dbo.fn_NivelMonto(SUM(d.[Cantidad] * d.[PrecioUnitario])) AS NivelFacturacion,
+        dbo.fn_NivelFacturacion(SUM(d.[Cantidad] * d.[PrecioUnitario])) AS NivelFacturacion,
         MAX(v.[Fecha]) AS UltimaCompra
     FROM [Ventas] v
     INNER JOIN [VentasDetalles] d ON v.[IdVenta] = d.[IdVenta]
@@ -258,7 +274,7 @@ BEGIN
         pr.[RazonSocial] AS Proveedor,
         COUNT(DISTINCT c.[IdCompra]) AS CantidadCompras,
         SUM(cd.[Cantidad] * cd.[PrecioUnitario]) AS TotalComprado,
-        dbo.fn_NivelMonto(SUM(cd.[Cantidad] * cd.[PrecioUnitario])) AS NivelInversion,
+        dbo.fn_NivelFacturacion(SUM(cd.[Cantidad] * cd.[PrecioUnitario])) AS NivelInversion,
         MAX(c.[Fecha]) AS UltimaCompra
     FROM [Compras] c
     INNER JOIN [ComprasDetalles] cd ON c.[IdCompra] = cd.[IdCompra]
@@ -281,7 +297,7 @@ BEGIN
         e.[IdEmpleado],
         p.[Apellido] + ', ' + p.[Nombre] AS Empleado,
         SUM(ps.[MontoPagado]) AS TotalPagado,
-        dbo.fn_NivelMonto(SUM(ps.[MontoPagado])) AS NivelGastoSueldo,
+        dbo.fn_NivelFacturacion(SUM(ps.[MontoPagado])) AS NivelGastoSueldo,
         MAX(ps.[FechaPago]) AS UltimoPago
     FROM [PagoSueldos] ps
     INNER JOIN [Empleados] e ON ps.[IdEmpleado] = e.[IdEmpleado]
@@ -304,7 +320,7 @@ BEGIN
         a.[Stock],
         a.[Precio],
         (a.[Stock] * a.[Precio]) AS ValorInventario,
-        dbo.fn_NivelMonto((a.[Stock] * a.[Precio])) AS NivelValorInventario,
+        dbo.fn_NivelFacturacion((a.[Stock] * a.[Precio])) AS NivelValorInventario,
         c.[Nombre] AS Categoria
     FROM [Articulos] a
     INNER JOIN [Categorias] c ON a.[IdCategoria] = c.[IdCategoria]
@@ -315,7 +331,7 @@ BEGIN
 
     /********************************************************************
       BLOQUE 5: MOVIMIENTOS DE STOCK
-      ma.IDMovimientoART y ma.PrecioVenta confirmados
+      ma.IDMovimientoART y ma.PrecioVente confirmados
     ********************************************************************/
     PRINT '>> MOVIMIENTOS DE STOCK (ENTRADAS Y SALIDAS)';
     SELECT 
